@@ -1,9 +1,11 @@
+'use strict';
+/*global cuid*/
 const store = {
   items: [
-    { id: cuid(), name: 'apples', checked: false },
-    { id: cuid(), name: 'oranges', checked: false },
-    { id: cuid(), name: 'milk', checked: true },
-    { id: cuid(), name: 'bread', checked: false }
+    { id: cuid(), name: 'apples', checked: false, edit: false },
+    { id: cuid(), name: 'oranges', checked: false, edit: false },
+    { id: cuid(), name: 'milk', checked: true, edit: false },
+    { id: cuid(), name: 'bread', checked: false, edit: false }
   ],
   hideCheckedItems: false
 };
@@ -16,6 +18,32 @@ const generateItemElement = function (item) {
     `;
   }
 
+
+  // if item is in edit mode, replace title with a form
+  let editButton = `
+    <button class='shopping-item-edit js-item-edit'>
+      <span class='button-labl'>edit</span>
+    </button>`;
+  if (item.edit) {
+    //if we're making a new box, we want to pre-fill with the current item (we'll also use current item as placeholder)
+    let existingText = item.name;
+    //but if there's anything in the box, we want to keep that
+    //otherwise a user who starts editing an item, changes the text, 
+    //and then clicks anything other than the OK button attached to that form
+    //will lose their changes
+    if($(`#js-edit-field-${item.id}`).val()){ 
+      existingText = $(`#js-edit-field-${item.id}`).val();
+    }
+    itemTitle = `
+      <form class="js-item-edit-form" id="edit-form-${item.id}>
+        <label for="edit-item">Edit this item</label>
+        <input type="text" name="edit-item" class="shopping-item-edit" id="js-edit-field-${item.id}" placeholder="${item.name}" value="${existingText}">
+        <button type="submit">OK</button>
+      </form>`;
+    editButton = ''; 
+  }
+
+
   return `
     <li class='js-item-element' data-item-id='${item.id}'>
       ${itemTitle}
@@ -26,6 +54,7 @@ const generateItemElement = function (item) {
         <button class='shopping-item-delete js-item-delete'>
           <span class='button-label'>delete</span>
         </button>
+        ${editButton}
       </div>
     </li>`;
 };
@@ -58,6 +87,7 @@ const render = function () {
    */
   const shoppingListItemsString = generateShoppingItemsString(items);
 
+
   // insert that HTML into the DOM
   $('.js-shopping-list').html(shoppingListItemsString);
 };
@@ -85,6 +115,32 @@ const handleItemCheckClicked = function () {
   $('.js-shopping-list').on('click', '.js-item-toggle', event => {
     const id = getItemIdFromElement(event.currentTarget);
     toggleCheckedForListItem(id);
+    render();
+  });
+};
+
+const handleEditItemSubmit = function() {
+  $('.js-shopping-list').on('submit', '.js-item-edit-form', event => {
+    event.preventDefault();
+    const id = getItemIdFromElement(event.currentTarget);
+    const text =  $(`#js-edit-field-${id}`).val();
+    editItem(id, text);
+    render();
+  });
+};
+
+const editItem = function(id, str){
+  const item = store.items.find(item => item.id === id);
+  item.edit = false;
+  item.name = str;
+};
+
+const handleEditClicked = function() {
+  $('.js-shopping-list').on('click', '.js-item-edit', event => {
+    event.preventDefault();
+    const id = getItemIdFromElement(event.currentTarget);
+    const item = store.items.find(item => item.id === id);
+    item.edit = true;
     render();
   });
 };
@@ -160,6 +216,8 @@ const handleShoppingList = function () {
   handleItemCheckClicked();
   handleDeleteItemClicked();
   handleToggleFilterClick();
+  handleEditItemSubmit();
+  handleEditClicked();
 };
 
 // when the page loads, call `handleShoppingList`
